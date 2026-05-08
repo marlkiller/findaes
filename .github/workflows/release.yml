@@ -6,26 +6,10 @@ on:
       - 'v*'
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
+  build-and-upload:
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: write
-    outputs:
-      release_id: ${{ steps.create-release.outputs.release_id }}
-
-    steps:
-      - name: Create release
-        id: create-release
-        uses: actions/create-release@v4
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build:
-    needs: create-release
-    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -60,12 +44,26 @@ jobs:
           make clean
           make cross
 
+      - name: Get release ID
+        id: get-release
+        run: |
+          RELEASE_ID=$(gh release view ${{ github.ref_name }} --json id -q '.id')
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release if not exists
+        id: create-release
+        run: |
+          if ! gh release view ${{ github.ref_name }} > /dev/null 2>&1; then
+            gh release create ${{ github.ref_name }} --title "Release ${{ github.ref_name }}"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload release asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ needs.create-release.outputs.release_id }}
-          asset_path: findaes${{ matrix.ext }}
-          asset_name: ${{ matrix.asset_name }}
-          asset_content_type: application/octet-stream
+        id: upload-asset
+        run: |
+          gh release upload ${{ github.ref_name }} findaes${{ matrix.ext }} --clobber --repo ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
