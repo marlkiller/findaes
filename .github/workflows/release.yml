@@ -1,31 +1,28 @@
 name: Release
-
 on:
   push:
     tags:
       - 'v*'
 
 jobs:
-  build-and-upload:
+  build:
     runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             target: linux
-            ext:
+            ext: ''
             asset_name: findaes-linux
           - os: macos-latest
             target: macos
-            ext:
+            ext: ''
             asset_name: findaes-macos
           - os: windows-latest
             target: windows
             ext: .exe
-            asset_name: findaes-windows
+            asset_name: findaes-windows.exe
 
     steps:
       - name: Checkout code
@@ -44,26 +41,36 @@ jobs:
           make clean
           make cross
 
-      - name: Get release ID
-        id: get-release
-        run: |
-          RELEASE_ID=$(gh release view ${{ github.ref_name }} --json id -q '.id')
-          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename artifact
+        run: mv findaes${{ matrix.ext }} ${{ matrix.asset_name }}
 
-      - name: Create release if not exists
-        id: create-release
-        run: |
-          if ! gh release view ${{ github.ref_name }} > /dev/null 2>&1; then
-            gh release create ${{ github.ref_name }} --title "Release ${{ github.ref_name }}"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
 
-      - name: Upload release asset
-        id: upload-asset
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create release and upload all assets
         run: |
-          gh release upload ${{ github.ref_name }} findaes${{ matrix.ext }} --clobber --repo ${{ github.repository }}
+          gh release create ${{ github.ref_name }} \
+            --title "Release ${{ github.ref_name }}" \
+            --generate-notes \
+            artifacts/findaes-linux \
+            artifacts/findaes-macos \
+            artifacts/findaes-windows.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
