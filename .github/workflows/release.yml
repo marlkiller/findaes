@@ -55,19 +55,36 @@ jobs:
       contents: write
 
     steps:
-      - name: Download artifacts
+      - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
-          path: ./release
-          pattern: findaes-*
-          merge-multiple: true
+          name: findaes-linux
+          path: ./release-linux
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: findaes-macos
+          path: ./release-macos
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: findaes-windows
+          path: ./release-windows
+
+      - name: List files
+        run: |
+          ls -la ./release-linux
+          ls -la ./release-macos
+          ls -la ./release-windows
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ./release/findaes-linux/findaes
-            ./release/findaes-macos/findaes
-            ./release/findaes-windows/findaes.exe
+            ./release-linux/findaes
+            ./release-macos/findaes
+            ./release-windows/findaes.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
