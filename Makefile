@@ -6,8 +6,9 @@ OBJ  = main.o aes.o
 
 all: $(GOAL)
 
-cross: CC = i386-mingw32-gcc
-cross: STRIP= i386-mingw32-strip
+# Windows交叉编译 - 支持不同版本的MinGW
+cross: CC = x86_64-w64-mingw32-gcc
+cross: STRIP = x86_64-w64-mingw32-strip
 cross: EXT = .exe
 cross: $(GOAL).exe
 
