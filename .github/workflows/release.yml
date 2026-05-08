@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -15,15 +15,12 @@ jobs:
           - os: ubuntu-latest
             target: linux
             ext:
-            binary_name: findaes-linux
           - os: macos-latest
             target: macos
             ext:
-            binary_name: findaes-macos
           - os: windows-latest
             target: windows
             ext: .exe
-            binary_name: findaes-windows
 
     steps:
       - name: Checkout code
@@ -42,49 +39,9 @@ jobs:
           make clean
           make cross
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.binary_name }}
-          path: findaes${{ matrix.ext }}
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: findaes-linux
-          path: ./release-linux
-
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: findaes-macos
-          path: ./release-macos
-
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: findaes-windows
-          path: ./release-windows
-
-      - name: List files
-        run: |
-          ls -la ./release-linux
-          ls -la ./release-macos
-          ls -la ./release-windows
-
-      - name: Create Release
+      - name: Upload release asset
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            ./release-linux/findaes
-            ./release-macos/findaes
-            ./release-windows/findaes.exe
+          files: findaes${{ matrix.ext }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
