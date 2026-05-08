@@ -11,40 +11,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         include:
-          - os: ubuntu-latest
-            target: linux
-            cross_compile: false
-          - os: macos-latest
-            target: macos
-            cross_compile: false
           - os: windows-latest
             target: windows
-            cross_compile: true
+            ext: .exe
+          - os: ubuntu-latest
+            target: linux
+            ext:
+          - os: macos-latest
+            target: macos
+            ext:
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set output variables
-        id: vars
-        run: |
-          if [ "${{ matrix.target }}" = "windows" ]; then
-            echo "binary_name=findaes.exe" >> $GITHUB_OUTPUT
-          else
-            echo "binary_name=findaes" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build for Linux/macOS
-        if: matrix.cross_compile == false
+      - name: Build on Linux/macOS
+        if: matrix.os != 'windows-latest'
         run: |
           make clean
           make
 
-      - name: Build for Windows (cross-compile)
-        if: matrix.cross_compile == true
+      - name: Build on Windows
+        if: matrix.os == 'windows-latest'
         run: |
-          choco install mingw
+          choco install mingw -y
           make clean
           make cross
 
@@ -52,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: findaes-${{ matrix.target }}
-          path: findaes${{ matrix.target == 'windows' && '.exe' || '' }}
+          path: findaes${{ matrix.ext }}
 
   release:
     needs: build
@@ -70,7 +62,6 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             artifacts/findaes-linux/findaes
